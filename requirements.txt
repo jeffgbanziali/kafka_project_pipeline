@@ -1,0 +1,26 @@
+# --- Core Environment ---
+python-dotenv==1.0.1
+pandas==2.2.3
+numpy==1.26.4
+kafka
+
+# --- Kafka ---
+confluent-kafka==2.3.0
+
+# --- Scheduling ---
+schedule==1.2.2
+
+# --- Databases ---
+sqlite-utils==3.36
+mysql-connector-python==9.0.0
+
+# --- Pipeline / ETL ---
+apache-beam==2.51.0
+
+# --- Logging / utils ---
+colorlog==6.8.2
+loguru==0.7.2
+orjson==3.10.3
+
+# --- Testing / Dev ---
+pytest==8.3.3
