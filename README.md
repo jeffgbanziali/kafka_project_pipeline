@@ -173,7 +173,7 @@ Ce script va envoyer des messages dans notre kafka sous cette forme :
 }
 
 ```
-La liste de nos steams dans kafka : 
+La liste de nos streams dans kafka : 
 ```
 TRANSACTIONS_SECURE
 TRANSACTIONS_USD
