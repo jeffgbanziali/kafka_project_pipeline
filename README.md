@@ -79,6 +79,9 @@ data_lake/
 ├── consumers/
 │   ├── kafka_to_datalake.py
 │   └── fake_kafka_producer.py
+├── cp-all-in-one/
+│   └── docker-compose.yml
+│   └── kafka_producer_transaction.py
 ├── jobs/
 │   ├── sqlite_loader.py
 │   ├── cleanup.py
@@ -128,6 +131,12 @@ reportlab
 
 ### Étape 1 : Vérifiez vos topics dans Kafka
 Dans le Control Center (http://localhost:9021) → rubrique **Topics**, assurez-vous que ces topics existent :
+ensuite lancer ce script :
+```bash
+python -m cp-all-in-one.kafka_producer_transaction
+```
+Ce script va envoyer des messages dans notre kafka
+
 ```
 TRANSACTIONS_SECURE
 TRANSACTIONS_USD
