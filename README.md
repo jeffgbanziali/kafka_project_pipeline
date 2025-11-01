@@ -130,12 +130,49 @@ reportlab
 ## 🛰️ 4. Consommation des flux Kafka vers le Data Lake
 
 ### Étape 1 : Vérifiez vos topics dans Kafka
-Dans le Control Center (http://localhost:9021) → rubrique **Topics**, assurez-vous que ces topics existent :
+Dans le Control Center (http://localhost:9021) → rubrique **Topics**, assurez-vous que ces topics existent, 
 ensuite lancer ce script :
+
 ```bash
 python -m cp-all-in-one.kafka_producer_transaction
 ```
-Ce script va envoyer des messages dans notre kafka
+Ce script va envoyer des messages dans notre kafka sous cette forme :
+```bash
+
+{
+  "TRANSACTION_ID": "TXN-bac5ffc7",
+  "TIMESTAMP": "2025-10-13T16:38:28.047846Z",
+  "USER_ID": "USER-4026",
+  "USER_NAME": "Johnson",
+  "PRODUCT_ID": "PROD-678",
+  "AMOUNT": 339.47,
+  "CURRENCY": "AUD",
+  "TRANSACTION_TYPE": "payment",
+  "STATUS": "pending",
+  "LOCATION": {
+    "CITY": "Guangzhou",
+    "COUNTRY": "China"
+  },
+  "PAYMENT_METHOD": "apple_pay",
+  "PRODUCT_CATEGORY": "books",
+  "QUANTITY": 5,
+  "SHIPPING_ADDRESS": {
+    "STREET": "174 Main St",
+    "ZIP": "31472",
+    "CITY": "Guangzhou",
+    "COUNTRY": "China"
+  },
+  "DEVICE_INFO": {
+    "OS": "MacOS",
+    "BROWSER": "Edge",
+    "IP_ADDRESS": "4.217.181.91"
+  },
+  "CUSTOMER_RATING": 3,
+  "DISCOUNT_CODE": null,
+  "TAX_AMOUNT": 0
+}
+
+```
 
 ```
 TRANSACTIONS_SECURE
