@@ -1,212 +1,244 @@
-# 🧠 TP – Data Lake & Data Warehouse (Confluent + Kafka + SQLite)
 
-## 🎯 Objectif du TP
-Ce projet met en place une **chaîne complète de traitement de données en streaming et batch**, basée sur **Kafka (Confluent Platform)**, un **Data Lake** (stockage local structuré) et un **Data Warehouse** sous **SQLite**.
-
-L’objectif est de :  
-- Créer un pipeline de bout en bout depuis Kafka jusqu’au stockage analytique.  
-- Appliquer les principes de l’ingénierie des données : ingestion, transformation, stockage, et analyse.  
-- Manipuler des flux de transactions sécurisées, agrégées et horodatées.
+# 🧠 TP – Data Lake & Data Warehouse
+### Projet : Ingestion, transformation et analyse de flux Kafka dans un Data Lake et Data Warehouse
+**Auteur :** Jeff Gbanziali  
+**École :** EFREI Paris – Master 1 Data Engineering & IA  
+**Date :** 31 octobre 2025  
 
 ---
 
-## 🏗️ Architecture générale
+## 🚀 Objectif du TP
 
-```text
-Kafka Topics  →  Data Lake (JSONL)  →  SQLite Data Warehouse
-   ↑
-   └── KSQL Streams & Tables (transactions, status, spending, blacklist…)
+L’objectif de ce TP est de construire une **chaîne complète de traitement de données** reposant sur :
+- **Kafka / Confluent Platform** pour l’ingestion en streaming,  
+- **un Data Lake** (stockage brut en JSONL),  
+- **un Data Warehouse (SQLite)** pour les analyses,  
+- et **une orchestration automatique** via un scheduler Python.
+
+Ce TP simule un cas réel d’ingénierie des données : ingestion, transformation, gouvernance et analyse continue des transactions.
+
+---
+
+## 🏗️ Architecture Globale du Pipeline
+
+```
+Kafka / Confluent Platform
+        │
+        ▼
+Python Consumer (confluent_kafka)
+        │
+        ▼
+Data Lake (dossiers JSONL par topic / date)
+        │
+        ▼
+SQLite Data Warehouse
+        │
+        ▼
+Requêtes SQL d’analyse & visualisation
 ```
 
-### Étapes principales :
-1. **Ingestion Kafka :**
-   - Utilisation de Confluent Platform (`docker-compose`) pour héberger Kafka, Schema Registry, KSQLDB, etc.
-   - Topics créés :  
-     `TRANSACTIONS_SECURE`, `TRANSACTIONS_USD`, `TRANSACTIONS_BLACKLISTED`,  
-     `TRANSACTIONS_COMPLETED`, `TRANSACTIONS_FAILED`, `TRANSACTIONS_PENDING`,  
-     `TRANSACTIONS_PROCESSING`, `TRANSACTIONS_CANCELLED`,  
-     `USER_SPENDING_BY_TYPE`, `SPEND_LAST_FIVE_MIN_BY_TYPE`.
-
-2. **Data Lake :**
-   - Stockage local des messages JSON dans :  
-     `pipeline/<topic>/<date>/<topic>_<date>.jsonl`
-   - Structuration journalière.
-   - Enrichissement automatique via le consumer Kafka.
-
-3. **Data Warehouse (SQLite) :**
-   - Chargement automatique depuis le Data Lake.
-   - Tables créées automatiquement :  
-     `TRANSACTIONS_SECURE`, `TRANSACTIONS_USD`, `USER_SPENDING_BY_TYPE`,  
-     `SPEND_LAST_FIVE_MIN_BY_TYPE`, etc.
-   - Chaque table contient :
-     ```sql
-     id INTEGER PRIMARY KEY,
-     data JSON,
-     imported_at TIMESTAMP
-     ```
-
 ---
 
-## ⚙️ Installation
+## ⚙️ 1. Préparation de l’Environnement Kafka
 
-### 1️⃣ Cloner le projet
+### 📦 Étape 1 : Démarrage de Confluent Kafka (TP1 cp-all-in-one)
+
+> 💡 Le professeur ou évaluateur doit **démarrer le cluster Kafka** depuis le dossier **`cp-all-in-one`** fourni avec le TP1.
+
+Dans un terminal Docker :
 ```bash
-git clone <repo-url>
-cd data_lake
-python -m venv venv
-venv\Scripts\activate  # Windows
+cd cp-all-in-one
+docker-compose up -d
 ```
 
-### 2️⃣ Installer les dépendances
+Cela lance :
+- Zookeeper (port 2181)  
+- Kafka Broker (9092)  
+- Schema Registry (8081)  
+- Kafka Connect (8083)  
+- ksqlDB Server (8088)  
+- Control Center (9021)  
+- REST Proxy (8082)
+
+Vérifiez le bon démarrage :
+```bash
+docker ps
+```
+
+Puis ouvrez **Confluent Control Center** :  
+👉 [http://localhost:9021](http://localhost:9021)
+
+---
+
+## 📂 2. Structure du Projet
+
+```
+data_lake/
+├── config/
+│   └── settings.py
+├── consumers/
+│   ├── kafka_to_datalake.py
+│   └── fake_kafka_producer.py
+├── jobs/
+│   ├── sqlite_loader.py
+│   ├── cleanup.py
+│   ├── permissions_manager.py
+│   └── scheduler.py
+├── pipeline/
+│   ├── TRANSACTIONS_USD/
+│   ├── TRANSACTIONS_SECURE/
+│   ├── TRANSACTIONS_FAILED/
+│   ├── TRANSACTIONS_PENDING/
+│   ├── TRANSACTIONS_BLACKLISTED/
+│   └── ...
+├── analysis/
+│   └── run_queries.py
+├── data_warehouse.db
+├── requirements.txt
+└── README.md
+```
+
+---
+
+## 🧰 3. Installation & Configuration
+
+### Étape 1 : Créer l’environnement Python
+```bash
+py -3.11 -m venv venv
+venv\Scripts\activate
+```
+
+### Étape 2 : Installer les dépendances
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3️⃣ Lancer la stack Kafka Confluent
-```bash
-docker-compose up -d
+### Étape 3 : Exemple de requirements.txt
+```txt
+confluent-kafka
+pandas
+schedule
+sqlite3-binary
+reportlab
 ```
 
-### 4️⃣ Démarrer le consumer Kafka → Data Lake
+---
+
+## 🛰️ 4. Consommation des flux Kafka vers le Data Lake
+
+### Étape 1 : Vérifiez vos topics dans Kafka
+Dans le Control Center (http://localhost:9021) → rubrique **Topics**, assurez-vous que ces topics existent :
+```
+TRANSACTIONS_SECURE
+TRANSACTIONS_USD
+TRANSACTIONS_BLACKLISTED
+TRANSACTIONS_FAILED
+TRANSACTIONS_PENDING
+TRANSACTIONS_PROCESSING
+TRANSACTIONS_COMPLETED
+USER_SPENDING_BY_TYPE
+SPEND_LAST_FIVE_MIN_BY_TYPE
+```
+
+### Étape 2 : Lancer le consumer
 ```bash
 python -m consumers.kafka_to_datalake
 ```
 
-Le script écoute tous les topics listés dans `config/settings.py` et écrit les messages dans `pipeline/`.
+📡 Le script écoute les topics et écrit les données dans :
+```
+pipeline/<topic>/<date>/<topic>_<date>.jsonl
+```
 
-### 5️⃣ Charger les données dans SQLite
+---
+
+## 🏦 5. Chargement dans le Data Warehouse (SQLite)
+
+### Étape 1 : Lancer le chargement
 ```bash
 python -m jobs.sqlite_loader
 ```
 
-Une base `data_warehouse.db` est alors créée/actualisée.
-
----
-
-## 🔄 Pipeline de traitement
-
-### **1. KSQL Streams**
-Les streams créés depuis `TRANSACTIONS_SECURE` :
-```sql
-CREATE STREAM TRANSACTIONS_USD AS
-SELECT
-  TRANSACTION_ID,
-  USER_ID_HASHED,
-  AMOUNT,
-  CURRENCY,
-  TRANSACTION_TYPE,
-  STATUS,
-  CASE
-    WHEN CURRENCY = 'EUR' THEN AMOUNT * 1.1
-    WHEN CURRENCY = 'GBP' THEN AMOUNT * 1.25
-    WHEN CURRENCY = 'CAD' THEN AMOUNT * 0.74
-    ELSE AMOUNT
-  END AS AMOUNT_USD,
-  'USD' AS TARGET_CURRENCY
-FROM TRANSACTIONS_SECURE
-EMIT CHANGES;
+📦 Les fichiers JSONL sont convertis en tables SQLite :
 ```
-
-### **2. Tables analytiques**
-Exemple : total dépensé par utilisateur et par type :
-```sql
-CREATE TABLE USER_SPENDING_BY_TYPE AS
-SELECT USER_ID_HASHED, TRANSACTION_TYPE,
-       SUM(AMOUNT_USD) AS TOTAL_SPENT_USD
-FROM TRANSACTIONS_USD
-GROUP BY USER_ID_HASHED, TRANSACTION_TYPE
-EMIT CHANGES;
-```
-
-### **3. Fenêtres glissantes (5 minutes)**
-```sql
-CREATE TABLE SPEND_LAST_FIVE_MIN_BY_TYPE AS
-SELECT TRANSACTION_TYPE,
-       SUM(AMOUNT_USD) AS TOTAL_LAST5MIN
-FROM TRANSACTIONS_USD
-WINDOW HOPPING (SIZE 5 MINUTES, ADVANCE BY 1 MINUTE)
-GROUP BY TRANSACTION_TYPE
-EMIT CHANGES;
+data_warehouse.db
+├── TRANSACTIONS_SECURE
+├── TRANSACTIONS_USD
+├── TRANSACTIONS_FAILED
+├── USER_SPENDING_BY_TYPE
+└── SPEND_LAST_FIVE_MIN_BY_TYPE
 ```
 
 ---
 
-## 🧩 Structure du projet
+## ⏰ 6. Orchestration & Gouvernance
 
-```text
-data_lake/
-├── config/
-│   └── settings.py              # Configuration générale (Kafka, Data Lake, Topics)
-├── consumers/
-│   ├── kafka_to_datalake.py     # Consumer Kafka → Data Lake
-│   └── fake_kafka_producer.py   # Générateur de données de test
-├── jobs/
-│   └── sqlite_loader.py         # Charge le Data Lake → SQLite
-├── pipeline/
-│   ├── TRANSACTIONS_SECURE/
-│   ├── TRANSACTIONS_USD/
-│   ├── TRANSACTIONS_BLACKLISTED/
-│   ├── USER_SPENDING_BY_TYPE/
-│   └── SPEND_LAST_FIVE_MIN_BY_TYPE/
-└── data_warehouse.db            # Base SQLite générée automatiquement
+### Scheduler automatique (toutes les 10 minutes)
+```bash
+python -m jobs.scheduler
 ```
+
+Ce fichier orchestre :
+- le chargement Data Lake → SQLite  
+- le nettoyage des anciens fichiers (> 7 jours)  
+- la vérification des permissions
 
 ---
 
-## 🧮 Analyse dans SQLite
+## 🔒 7. Gestion des Permissions et Nettoyage
 
-### Lister les tables
-```sql
-.tables
+- `permissions_manager.py` → crée une table `permissions` dans SQLite pour chaque utilisateur.  
+- `cleanup.py` → supprime automatiquement les anciens fichiers dans `pipeline/` pour limiter l’espace disque.
+
+---
+
+## 📊 8. Analyse et Requêtes SQL
+
+### Méthode 1 — Terminal SQLite
+
+```bash
+sqlite3 data_warehouse.db
 ```
 
-### Voir les premières lignes
+### Exemples d’analyses :
 ```sql
-SELECT * FROM TRANSACTIONS_USD LIMIT 5;
-```
-
-### Extraire des champs JSON
-```sql
-SELECT
-  json_extract(data, '$.TRANSACTION_ID') AS TRANSACTION_ID,
-  json_extract(data, '$.AMOUNT_USD') AS AMOUNT_USD,
-  json_extract(data, '$.TRANSACTION_TYPE') AS TRANSACTION_TYPE
+-- Total dépensé par type de transaction
+SELECT json_extract(data, '$.TRANSACTION_TYPE') AS transaction_type,
+       SUM(json_extract(data, '$.AMOUNT_USD')) AS total_spent_usd
 FROM TRANSACTIONS_USD
+GROUP BY transaction_type;
+
+-- Classement des utilisateurs les plus dépensiers
+SELECT json_extract(data, '$.USER_ID_HASHED') AS user,
+       SUM(json_extract(data, '$.AMOUNT_USD')) AS total
+FROM TRANSACTIONS_USD
+GROUP BY user
+ORDER BY total DESC
 LIMIT 10;
 ```
 
-### Agréger par type
-```sql
-SELECT
-  json_extract(data, '$.TRANSACTION_TYPE') AS type,
-  SUM(json_extract(data, '$.AMOUNT_USD')) AS total
-FROM TRANSACTIONS_USD
-GROUP BY type;
+### Méthode 2 — Script Python
+```bash
+python -m analysis.run_queries
 ```
 
 ---
 
-## 🧠 Points d’apprentissage
+## 📅 9. Rapport Final
 
-| Thème | Compétence acquise |
-|-------|--------------------|
-| Kafka / Confluent | Création de topics, production et consommation de flux |
-| KSQLDB | Manipulation de données en streaming et agrégation temps réel |
-| Data Lake | Stockage brut JSON structuré par date et sujet |
-| Data Warehouse | Intégration analytique (SQLite) |
-| Python | Automatisation du pipeline (producers, consumers, loaders) |
+Le rapport PDF est généré automatiquement : `TP_DataLake_Report.pdf`
 
----
-
-## 🏁 Résultat final
-
-✅ Un pipeline de données complet :  
-Kafka → KSQL → Data Lake (JSON) → SQLite (analytique).
-
-✅ Une architecture conforme à un **mini-lab d’ingénierie de données moderne**.  
-✅ Réutilisable pour d’autres sujets (IoT, transactions bancaires, logs web, etc.).
+Il contient :
+- L’architecture du pipeline  
+- La structure du projet  
+- La gouvernance et le scheduler  
+- Les requêtes d’analyse SQL  
 
 ---
 
-📅 Date de réalisation : **31/10/2025**  
-👨‍💻 Auteur : **Jeff Gbanziali**
+## 👨‍💻 Auteur
+
+**Jeff Gbanziali**  
+Étudiant M1 Data Engineering & Intelligence Artificielle  
+📍 EFREI Paris  
+📅 Octobre 2025  
