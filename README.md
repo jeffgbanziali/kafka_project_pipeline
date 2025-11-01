@@ -272,7 +272,7 @@ python -m analysis.run_queries
 
 ## 📅 9. Rapport Final
 
-Le rapport PDF est généré automatiquement : `TP_DataLake_Report.pdf`
+Le rapport PDF se trouve dans le dossier : `report/TP3.pdf`
 
 Il contient :
 - L’architecture du pipeline  
@@ -284,7 +284,7 @@ Il contient :
 
 ## 👨‍💻 Auteur
 
-**Jeff Gbanziali**  
+**Jeff GBANZIALI et Franck MBOUTOU**  
 Étudiant M1 Data Engineering & Intelligence Artificielle  
 📍 EFREI Paris  
 📅 Octobre 2025  
